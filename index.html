@@ -42,7 +42,7 @@
 <body>
   <h1>Numeropeli</h1>
   <p>Klikkaa ruutuja järjestyksessä 1–36 sääntöjen mukaan.</p>
-  <p>Voit asettaa seuraavan luvun vaaka- tai pystysuunnassa kolmen ruudun päähän tai vinottain kahden ruudun päähän.</p>
+  <p>Voit asettaa seuraavan luvun vaaka- tai pystysuunnassa kolmen ruudun päähän <br> tai vinottain kahden ruudun päähän.</p>
   <p>Voit peruuttaa siirtosi yhden kerran.</p>
   <div id="grid"></div>
   <p id="status">Seuraava luku: 1</p>
@@ -52,6 +52,7 @@
     <button id="resetBtn">Aloita alusta</button>
   </div>
   <p><small>©️KAN</small></p>
+  
   <script>
     const gridSize = 6;
     let currentNumber = 1;
@@ -147,7 +148,7 @@
         path.push({row, col, number: currentNumber});
         currentNumber++;
         if (currentNumber > 36) {
-          status.textContent = "Peli päättyi! Kaikki numerot asetettu.";
+          status.textContent = "Peli päättyi! Kaikki numerot asetettu. Hienoa! Pyydä palkinto opelta :)";
           if (path.length > bestScore) {
             bestScore = path.length;
             localStorage.setItem('numeropolkuBest', bestScore);
@@ -158,7 +159,7 @@
           checkGameOver();
         }
       } else {
-        alert("Virheellinen siirto sääntöjen mukaan!");
+        alert("Virheellinen siirto!");
       }
     });
 
