@@ -28,10 +28,13 @@
       background-color: #b2f0b2;
       cursor: default;
     }
-    #resetBtn {
+    .controls {
       margin-top: 10px;
+    }
+    button {
       padding: 8px 16px;
       font-size: 16px;
+      margin: 0 5px;
     }
   </style>
 </head>
@@ -40,15 +43,26 @@
   <p>Klikkaa ruutuja järjestyksessä 1–36 sääntöjen mukaan.</p>
   <div id="grid"></div>
   <p id="status">Seuraava luku: 1</p>
-  <button id="resetBtn">Aloita alusta</button>
+  <p id="best">Paras tulos: -</p>
+  <div class="controls">
+    <button id="undoBtn">Peruuta siirto</button>
+    <button id="resetBtn">Aloita alusta</button>
+  </div>
 
   <script>
     const gridSize = 6;
     let currentNumber = 1;
     const grid = document.getElementById('grid');
     const status = document.getElementById('status');
+    const bestDisplay = document.getElementById('best');
     const resetBtn = document.getElementById('resetBtn');
+    const undoBtn = document.getElementById('undoBtn');
     const cells = [];
+
+    let bestScore = localStorage.getItem('numeropolkuBest') || 0;
+    if (bestScore > 0) {
+      bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+    }
 
     function initGrid() {
       grid.innerHTML = '';
@@ -74,6 +88,17 @@
       initGrid();
     }
 
+    function undoMove() {
+      if (path.length === 0) return;
+      const last = path.pop();
+      const index = last.row * gridSize + last.col;
+      const cell = cells[index];
+      cell.textContent = '';
+      cell.classList.remove('filled');
+      currentNumber--;
+      status.textContent = `Seuraava luku: ${currentNumber}`;
+    }
+
     grid.addEventListener('click', (e) => {
       const cell = e.target;
       if (!cell.classList.contains('cell') || cell.classList.contains('filled')) return;
@@ -88,6 +113,11 @@
         currentNumber++;
         if (currentNumber > 36) {
           status.textContent = "Peli päättyi! Kaikki numerot asetettu.";
+          if (path.length > bestScore) {
+            bestScore = path.length;
+            localStorage.setItem('numeropolkuBest', bestScore);
+            bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+          }
         } else {
           status.textContent = `Seuraava luku: ${currentNumber}`;
         }
@@ -97,23 +127,16 @@
     });
 
     resetBtn.addEventListener('click', resetGame);
+    undoBtn.addEventListener('click', undoMove);
 
     function isValidMove(row, col) {
-      if (path.length === 0) return true; // ensimmäinen numero voi mennä mihin vain
-
+      if (path.length === 0) return true;
       const last = path[path.length - 1];
       const dx = col - last.col;
       const dy = row - last.row;
-
-      // vaakasuuntainen siirto: 3 ruudun päässä (2 tyhjää välissä)
       if (row === last.row && Math.abs(dx) === 3) return true;
-
-      // pystysuuntainen siirto: 3 ruudun päässä (2 tyhjää väliin)
       if (col === last.col && Math.abs(dy) === 3) return true;
-
-      // vinottain: 2 ruudun päässä (1 tyhjä välissä)
       if (Math.abs(dx) === 2 && Math.abs(dy) === 2) return true;
-
       return false;
     }
 
