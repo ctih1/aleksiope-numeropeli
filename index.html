@@ -41,6 +41,7 @@
 <body>
   <h1>Numeropolku 6x6</h1>
   <p>Klikkaa ruutuja järjestyksessä 1–36 sääntöjen mukaan.</p>
+  <p>Voit asettaa seuraavan luvun vaaka- tai pystysuunnassa kolmen ruudun päähän tai vinottain kahden ruudun päähän.</p>
   <div id="grid"></div>
   <p id="status">Seuraava luku: 1</p>
   <p id="best">Paras tulos: -</p>
@@ -80,16 +81,18 @@
     }
 
     let path = [];
+    let undoUsed = false;
 
     function resetGame() {
       currentNumber = 1;
       path = [];
+      undoUsed = false;
       status.textContent = "Seuraava luku: 1";
       initGrid();
     }
 
     function undoMove() {
-      if (path.length === 0) return;
+      if (undoUsed || path.length === 0) return;
       const last = path.pop();
       const index = last.row * gridSize + last.col;
       const cell = cells[index];
@@ -97,6 +100,36 @@
       cell.classList.remove('filled');
       currentNumber--;
       status.textContent = `Seuraava luku: ${currentNumber}`;
+      undoUsed = true;
+    }
+
+    function hasValidMoves(row, col) {
+      const directions = [
+        {dx: 3, dy: 0}, {dx: -3, dy: 0},
+        {dx: 0, dy: 3}, {dx: 0, dy: -3},
+        {dx: 2, dy: 2}, {dx: -2, dy: 2},
+        {dx: 2, dy: -2}, {dx: -2, dy: -2},
+      ];
+      return directions.some(d => {
+        const newRow = row + d.dy;
+        const newCol = col + d.dx;
+        if (newRow < 0 || newRow >= gridSize || newCol < 0 || newCol >= gridSize) return false;
+        const index = newRow * gridSize + newCol;
+        return !cells[index].classList.contains('filled');
+      });
+    }
+
+    function checkGameOver() {
+      if (path.length === 0) return;
+      const last = path[path.length - 1];
+      if (!hasValidMoves(last.row, last.col)) {
+        status.textContent = "Ei enää mahdollisia siirtoja. Peli päättyi.";
+        if (path.length > bestScore) {
+          bestScore = path.length;
+          localStorage.setItem('numeropolkuBest', bestScore);
+          bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+        }
+      }
     }
 
     grid.addEventListener('click', (e) => {
@@ -120,6 +153,7 @@
           }
         } else {
           status.textContent = `Seuraava luku: ${currentNumber}`;
+          checkGameOver();
         }
       } else {
         alert("Virheellinen siirto sääntöjen mukaan!");
