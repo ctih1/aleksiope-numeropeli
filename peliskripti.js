@@ -1,6 +1,6 @@
 const gridSizeSelection = document.querySelector("#ruudukon-koko");
 let gridSize = gridSizeSelection.value;
-document.getElementById("maxNum").innerHTML = gridSize**2;
+document.getElementById("maxNum").innerHTML = gridSize ** 2;
 
 let currentNumber = 1;
 const grid = document.getElementById('grid');
@@ -9,6 +9,12 @@ const bestDisplay = document.getElementById('best');
 const resetBtn = document.getElementById('resetBtn');
 const undoBtn = document.getElementById('undoBtn');
 const cells = [];
+let moves = {};
+let longestPath = [];
+let used = {};
+let shouldBeHidden = false;
+
+window.onkeydown = (event) => { if(event.key === "q") shouldBeHidden = !shouldBeHidden}
 
 let bestScore = localStorage.getItem('numeropolkuBest') || 0;
 if (bestScore > 0) {
@@ -19,14 +25,14 @@ function initGrid() {
     grid.innerHTML = '';
     cells.length = 0;
     for (let row = 0; row < gridSize; row++) {
-    for (let col = 0; col < gridSize; col++) {
-        const cell = document.createElement('div');
-        cell.classList.add('cell');
-        cell.dataset.row = row;
-        cell.dataset.col = col;
-        grid.appendChild(cell);
-        cells.push(cell);
-    }
+        for (let col = 0; col < gridSize; col++) {
+            const cell = document.createElement('div');
+            cell.classList.add('cell');
+            cell.dataset.row = row;
+            cell.dataset.col = col;
+            grid.appendChild(cell);
+            cells.push(cell);
+        }
     }
 }
 
@@ -36,6 +42,8 @@ let undoUsed = false;
 function resetGame() {
     currentNumber = 1;
     path = [];
+    moves = {};
+    longestPath = [];
     undoUsed = false;
     status.textContent = "Seuraava luku: 1";
     initGrid();
@@ -53,39 +61,134 @@ function undoMove() {
     undoUsed = true;
 }
 
-function hasValidMoves(row, col) {
+function findAvailableMoves(row, col, usedIndexes) {
     const directions = [
-    {dx: 3, dy: 0}, {dx: -3, dy: 0},
-    {dx: 0, dy: 3}, {dx: 0, dy: -3},
-    {dx: 2, dy: 2}, {dx: -2, dy: 2},
-    {dx: 2, dy: -2}, {dx: -2, dy: -2},
+        { dx: 3, dy: 0 }, { dx: -3, dy: 0 },
+        { dx: 0, dy: 3 }, { dx: 0, dy: -3 },
+        { dx: 2, dy: 2 }, { dx: -2, dy: 2 },
+        { dx: 2, dy: -2 }, { dx: -2, dy: -2 },
     ];
-    return directions.some(d => {
-    const newRow = row + d.dy;
-    const newCol = col + d.dx;
-    if (newRow < 0 || newRow >= gridSize || newCol < 0 || newCol >= gridSize) return false;
-    const index = newRow * gridSize + newCol;
-    return !cells[index].classList.contains('filled');
+
+    let availableMoves = [];
+
+    directions.forEach(d => {
+        const newRow = row + d.dy;
+        const newCol = col + d.dx;
+        if (newRow < 0 || newRow >= gridSize || newCol < 0 || newCol >= gridSize)
+            return false;
+        const index = newRow * gridSize + newCol;
+        let isFilled = usedIndexes[index];
+
+        if (!isFilled) {
+            availableMoves.push({ row: newRow, col: newCol });
+            return true;
+        }
+        return false;
     });
+
+    return availableMoves
+}
+
+function recurseChoices(row, col, used, lPath) {
+    console.log(`Recursing size ${lPath.length}`);
+    let index = row * gridSize + col;
+
+    if(!isValidMove(row,col, lPath)) {
+        console.log(`Invalid move ${row} ${col} from ${path[path.length -1].col}`);
+        return false
+    }
+    if (used[index]) {
+        console.log("already used");
+        return false
+    }
+    if (lPath.length > gridSize ** 2) {
+        console.warn("Backtrack length exceeded gridsize");
+        return false;
+    }
+
+    used[index] = true;
+    lPath.push({ row, col });
+
+    if(lPath.length === gridSize ** 2) {
+        longestPath = [...lPath];
+        return true;
+    }
+
+    let moves = findAvailableMoves(row, col, used)
+     .sort((a, b) => {
+            const aMoves = findAvailableMoves(a.row, a.col, used).length;
+            const bMoves = findAvailableMoves(b.row, b.col, used).length;
+            return aMoves - bMoves;
+        });
+
+    if (moves.length === 0) {
+        if (lPath.length > longestPath.length) {
+            longestPath = [...lPath];
+        }
+    } else {
+        for (let move of moves) {
+            if(recurseChoices(move.row, move.col, used, lPath)) {
+                return true;
+            }
+        }
+    }
+
+    used[index] = false;
+    lPath.pop();
+    return false;
+}
+
+function hasValidMoves(row, col) {
+    let availableMoves = findAvailableMoves(row, col, moves);
+
+    return availableMoves.length > 0;
+}
+
+function getAssist(row, col, used, path) {
+    console.log("getting assist");
+    longestPath = [];
+
+    recurseChoices(row, col, JSON.parse(JSON.stringify(used)), path.slice());
+
+    let active = document.getElementsByClassName("active")
+    while(active.length) {
+        console.log(active);
+        active[0].classList.remove("active");
+    }
+
+    let element = longestPath[path.length+1];
+    if(element && !shouldBeHidden) {
+        let index = element.row * gridSize + element.col;
+        cells[index].classList.add("active");
+    }
+
+}
+function completeGame() {
+    recurseChoices(0,0, {}, []);
+    longestPath.forEach(element => {
+        let index = element.row * gridSize + element.col;
+        cells[index].click();
+    })
 }
 
 function checkGameOver() {
     if (path.length === 0) return;
     const last = path[path.length - 1];
     if (!hasValidMoves(last.row, last.col)) {
-    status.textContent = "Ei enää mahdollisia siirtoja. Peli päättyi.";
-    if (path.length > bestScore) {
-        bestScore = path.length;
-        localStorage.setItem('numeropolkuBest', bestScore);
-        bestDisplay.textContent = `Paras tulos: ${bestScore}`;
-    }
+        status.textContent = "Ei enää mahdollisia siirtoja. Peli päättyi.";
+        if (path.length > bestScore) {
+            bestScore = path.length;
+            localStorage.setItem('numeropolkuBest', bestScore);
+            bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+        }
     }
 }
 
 gridSizeSelection.addEventListener('change', () => {
     gridSize = gridSizeSelection.value;
     grid.style.setProperty('--gridSize', gridSize);
-    document.getElementById("maxNum").innerHTML = gridSize**2;
+    resetGame();
+    document.getElementById("maxNum").innerHTML = gridSize ** 2;
     localStorage.setItem('numeropolkuBest', 0);
     bestDisplay.textContent = `Paras tulos: -`;
     resetGame();
@@ -98,24 +201,26 @@ grid.addEventListener('click', (e) => {
     const row = parseInt(cell.dataset.row);
     const col = parseInt(cell.dataset.col);
 
-    if (isValidMove(row, col)) {
-    cell.textContent = currentNumber;
-    cell.classList.add('filled');
-    path.push({row, col, number: currentNumber});
-    currentNumber++;
-    if (currentNumber > gridSize**2) {
-        status.textContent = "Peli päättyi! Kaikki numerot asetettu. Hienoa! Pyydä palkinto opelta :)";
-        if (path.length > bestScore) {
-        bestScore = path.length;
-        localStorage.setItem('numeropolkuBest', bestScore);
-        bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+    if (isValidMove(row, col, path)) {
+        getAssist(row,col, moves, path);
+        cell.textContent = currentNumber;
+        cell.classList.add('filled');
+        moves[row * gridSize + col] = true;
+        path.push({ row, col, number: currentNumber });
+        currentNumber++;
+        if (currentNumber > gridSize ** 2) {
+            status.textContent = "Peli päättyi! Kaikki numerot asetettu. Hienoa! Pyydä palkinto opelta :)";
+            if (path.length > bestScore) {
+                bestScore = path.length;
+                localStorage.setItem('numeropolkuBest', bestScore);
+                bestDisplay.textContent = `Paras tulos: ${bestScore}`;
+            }
+        } else {
+            status.textContent = `Seuraava luku: ${currentNumber}`;
+            checkGameOver();
         }
     } else {
-        status.textContent = `Seuraava luku: ${currentNumber}`;
-        checkGameOver();
-    }
-    } else {
-    alert("Virheellinen siirto!");
+        alert(`Virheellinen siirto! ${row}x${col}`);
     }
 });
 
@@ -123,7 +228,7 @@ resetBtn.addEventListener('click', resetGame);
 undoBtn.addEventListener('click', undoMove);
 
 
-function isValidMove(row, col) {
+function isValidMove(row, col, path) {
     if (path.length === 0) return true;
     const last = path[path.length - 1];
     const dx = col - last.col;
