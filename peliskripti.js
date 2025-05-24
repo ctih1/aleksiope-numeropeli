@@ -15,8 +15,8 @@ const attempts = document.getElementById("attempts");
 
 const visualizationLabel = document.getElementById("visual-label");
 let visualizationOn = true;
-
 let delay = 10;
+let isAutocompleting = false;
 
 let algoAttempts = 0;
 const cells = [];
@@ -202,11 +202,13 @@ async function getAssist(row, col, used, path) {
 }
 
 async function completeGame() {
+    isAutocompleting = true;
     await recurseChoices(0,0, {}, []).then(_ => {
         longestPath.forEach(element => {
             let index = element.row * gridSize + element.col;
             cells[index].click();
-        })
+        });
+        isAutocompleting = false;
     })
 
 }
@@ -242,7 +244,9 @@ grid.addEventListener('click', async (e) => {
     const col = parseInt(cell.dataset.col);
 
     if (isValidMove(row, col, path)) {
-        await getAssist(row,col, moves, path);
+        if(!isAutocompleting) {
+            await getAssist(row,col, moves, path);
+        }
         cell.textContent = currentNumber;
         cell.classList.add('filled');
         moves[row * gridSize + col] = true;
