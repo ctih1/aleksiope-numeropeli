@@ -8,6 +8,17 @@ const status = document.getElementById('status');
 const bestDisplay = document.getElementById('best');
 const resetBtn = document.getElementById('resetBtn');
 const undoBtn = document.getElementById('undoBtn');
+const visualizationToggle = document.getElementById("visual-toggle");
+const delayRange = document.getElementById("delay-range");
+const delayLabel = document.getElementById("delay-label");
+const attempts = document.getElementById("attempts");
+
+const visualizationLabel = document.getElementById("visual-label");
+let visualizationOn = true;
+
+let delay = 10;
+
+let algoAttempts = 0;
 const cells = [];
 let moves = {};
 let longestPath = [];
@@ -89,18 +100,26 @@ function findAvailableMoves(row, col, usedIndexes) {
     return availableMoves
 }
 
-function recurseChoices(row, col, used, lPath) {
+async function recurseChoices(row, col, used, lPath) {
+    algoAttempts++;
     console.log(`Recursing size ${lPath.length}`);
     let index = row * gridSize + col;
 
-    if(!isValidMove(row,col, lPath)) {
-        console.log(`Invalid move ${row} ${col} from ${path[path.length -1].col}`);
-        return false
+    if (!isValidMove(row, col, lPath)) {
+        console.log(`Invalid move ${row} ${col} from ${path[path.length -1]?.col}`);
+        return false;
     }
+
+    if (visualizationOn) {
+        await highlightCell(row, col, lPath);
+        await new Promise(r => setTimeout(r, delay));
+    }
+
     if (used[index]) {
         console.log("already used");
-        return false
+        return false;
     }
+
     if (lPath.length > gridSize ** 2) {
         console.warn("Backtrack length exceeded gridsize");
         return false;
@@ -109,13 +128,13 @@ function recurseChoices(row, col, used, lPath) {
     used[index] = true;
     lPath.push({ row, col });
 
-    if(lPath.length === gridSize ** 2) {
+    if (lPath.length === gridSize ** 2) {
         longestPath = [...lPath];
         return true;
     }
 
     let moves = findAvailableMoves(row, col, used)
-     .sort((a, b) => {
+        .sort((a, b) => {
             const aMoves = findAvailableMoves(a.row, a.col, used).length;
             const bMoves = findAvailableMoves(b.row, b.col, used).length;
             return aMoves - bMoves;
@@ -127,9 +146,8 @@ function recurseChoices(row, col, used, lPath) {
         }
     } else {
         for (let move of moves) {
-            if(recurseChoices(move.row, move.col, used, lPath)) {
-                return true;
-            }
+            const result = await recurseChoices(move.row, move.col, used, lPath);
+            if (result) return true;
         }
     }
 
@@ -138,37 +156,59 @@ function recurseChoices(row, col, used, lPath) {
     return false;
 }
 
+
 function hasValidMoves(row, col) {
     let availableMoves = findAvailableMoves(row, col, moves);
 
     return availableMoves.length > 0;
 }
 
-function getAssist(row, col, used, path) {
+async function highlightCell(row, col, currentPath) {
+    let active = document.getElementsByClassName("highlight")
+    while(active.length) {
+        active[0].classList.remove("highlight");
+    }
+    let longest = document.getElementsByClassName("longest")
+    while(longest.length) {
+        longest[0].classList.remove("longest");
+    };
+
+    currentPath.forEach(element => {
+        let index = element.row * gridSize + element.col;
+        cells[index].classList.add("longest");
+    });
+
+    attempts.textContent = `Total algorithm attempts: ${algoAttempts}`;
+    let index = row * gridSize + col;
+    cells[index].classList.add("highlight");
+}
+
+async function getAssist(row, col, used, path) {
     console.log("getting assist");
     longestPath = [];
-
-    recurseChoices(row, col, JSON.parse(JSON.stringify(used)), path.slice());
+    algoAttempts = 0;
+    await recurseChoices(row, col, JSON.parse(JSON.stringify(used)), path.slice());
 
     let active = document.getElementsByClassName("active")
     while(active.length) {
-        console.log(active);
         active[0].classList.remove("active");
     }
 
-    let element = longestPath[path.length+1];
-    if(element && !shouldBeHidden) {
+    let element = longestPath[path.length + 1];
+    if (element && !shouldBeHidden) {
         let index = element.row * gridSize + element.col;
         cells[index].classList.add("active");
     }
-
 }
-function completeGame() {
-    recurseChoices(0,0, {}, []);
-    longestPath.forEach(element => {
-        let index = element.row * gridSize + element.col;
-        cells[index].click();
+
+async function completeGame() {
+    await recurseChoices(0,0, {}, []).then(_ => {
+        longestPath.forEach(element => {
+            let index = element.row * gridSize + element.col;
+            cells[index].click();
+        })
     })
+
 }
 
 function checkGameOver() {
@@ -194,7 +234,7 @@ gridSizeSelection.addEventListener('change', () => {
     resetGame();
 });
 
-grid.addEventListener('click', (e) => {
+grid.addEventListener('click', async (e) => {
     const cell = e.target;
     if (!cell.classList.contains('cell') || cell.classList.contains('filled')) return;
 
@@ -202,7 +242,7 @@ grid.addEventListener('click', (e) => {
     const col = parseInt(cell.dataset.col);
 
     if (isValidMove(row, col, path)) {
-        getAssist(row,col, moves, path);
+        await getAssist(row,col, moves, path);
         cell.textContent = currentNumber;
         cell.classList.add('filled');
         moves[row * gridSize + col] = true;
@@ -226,7 +266,13 @@ grid.addEventListener('click', (e) => {
 
 resetBtn.addEventListener('click', resetGame);
 undoBtn.addEventListener('click', undoMove);
-
+visualizationToggle.addEventListener("change", event => {
+    visualizationOn = visualizationToggle.checked;
+})
+delayRange.oninput = function() {
+    delay = this.value;
+    delayLabel.textContent = `(${delay}ms)`
+}
 
 function isValidMove(row, col, path) {
     if (path.length === 0) return true;

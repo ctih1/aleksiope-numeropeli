@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="fi">
 <head>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
   <meta charset="UTF-8">
   <title>Numeropeli</title>
   <style>
@@ -13,6 +14,12 @@
       gap: 5px;
       margin: 20px auto;
       width: max-content;
+    }
+    #options {
+      display: flex;
+      flex-direction: column;
+      max-width: 50vw;
+      margin: auto;
     }
     .cell {
       width: 60px;
@@ -40,6 +47,13 @@
       font-size: 16px;
       margin: 0 5px;
     }
+    .highlight {
+      background-color: rgb(255, 75, 75);
+    }
+    .longest {
+      background-color: #9b9b9b;
+    }
+
   </style>
   
 </head>
@@ -49,12 +63,26 @@
   <p>Voit asettaa seuraavan luvun vaaka- tai pystysuunnassa kolmen ruudun päähän <br> tai vinottain kahden ruudun päähän.</p>
   <p>Voit peruuttaa siirtosi yhden kerran.</p>
 
-  <label for="ruudukon-koko">Valitse ruudukon koko:</label>
+  <div id="options">
+    <label id="visual-label">Enable path visualization</label>
+    <input checked="true" type="checkbox" id="visual-toggle" >
 
-  <select name="ruudukko" id="ruudukon-koko">
-    <option>5</option>
-    <option>6</option>
-  </select>
+    <label>Path visualization delay</label>
+    <input type="range" min="1" max="1000" value="10" id="delay-range">
+    <label id="delay-label">(10ms)</label>
+    <label id="attempts">Total algorithm attempts: 0</label>
+
+    <label for="ruudukon-koko">Valitse ruudukon koko:</label>
+    <select name="ruudukko" id="ruudukon-koko">
+      <option>5</option>
+      <option>6</option>
+      <option>8</option>
+      <option>12</option>
+      <option>16</option>
+      <option>32</option>
+
+    </select>
+  </div>
 
   <div id="grid"></div>
   <p id="status">Seuraava luku: 1</p>
