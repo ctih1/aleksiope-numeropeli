@@ -51,6 +51,7 @@ let path = [];
 let undoUsed = false;
 
 function resetGame() {
+    algoAttempts = 0;
     currentNumber = 1;
     path = [];
     moves = {};
@@ -202,6 +203,7 @@ async function getAssist(row, col, used, path) {
 }
 
 async function completeGame() {
+    resetGame();
     isAutocompleting = true;
     await recurseChoices(0,0, {}, []).then(_ => {
         longestPath.forEach(element => {
